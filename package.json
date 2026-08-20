@@ -18,6 +18,8 @@
   },
   "homepage": "https://github.com/DuongNAD/NodeJS_Learning#readme",
   "dependencies": {
-    "chalk": "^6.0.0"
+    "chalk": "^6.0.0",
+    "dotenv": "^17.4.2",
+    "nodemailer": "^9.0.5"
   }
 }
