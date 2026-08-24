@@ -1,37 +1,69 @@
 const express = require("express");
 const app = express();
-const PORT = 3000;
 
-app.get("/", (req, res) => {
-  res.send("Hello Express.js");
+app.use(express.json());
+
+let books = [
+  { id: 1, title: "Node.js Basics" }
+];
+
+app.get("/books", (req, res) => {
+  res.json(books);
 });
 
-app.get("/products", (req, res) => {
-  res.send(`
-    <h1>Product List</h1>
-    <ul>
-      <li>Laptop</li>
-      <li>Phone</li>
-      <li>Headphones</li>
-    </ul>
-  `);
+app.get("/books/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const book = books.find(item => item.id === id);
+
+  if (!book) {
+    res.status(404).json({ message: "Book not found" });
+    return;
+  }
+
+  res.json(book);
 });
 
-app.get("/products/featured", (req, res) => {
-  res.send(`
-    <h1>Featured Product</h1>
-    <p>Special deal on MacBook Pro!</p>
-  `);
+app.post("/books", (req, res) => {
+  if (!req.body.title) {
+    res.status(400).json({ message: "Title is required" });
+    return;
+  }
+
+  const book = {
+    id: Date.now(),
+    title: req.body.title
+  };
+
+  books.push(book);
+  res.status(201).json(book);
 });
 
-app.get("/api/products", (req, res) => {
-  res.json([
-    { id: 1, name: "Laptop Dell", price: 15000000 },
-    { id: 2, name: "iPhone 15", price: 20000000 },
-    { id: 3, name: "Sony Headphones", price: 3000000 }
-  ]);
+app.put("/books/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const book = books.find(item => item.id === id);
+
+  if (!book) {
+    res.status(404).json({ message: "Book not found" });
+    return;
+  }
+
+  book.title = req.body.title || book.title;
+  res.json(book);
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+app.delete("/books/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const index = books.findIndex(item => item.id === id);
+
+  if (index === -1) {
+    res.status(404).json({ message: "Book not found" });
+    return;
+  }
+
+  const deletedBook = books.splice(index, 1)[0];
+  res.json(deletedBook);
+});
+
+app.listen(3000, () => {
+  console.log("API is running at http://localhost:3000");
 });
