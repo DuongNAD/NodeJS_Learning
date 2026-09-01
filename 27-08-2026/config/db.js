@@ -3,10 +3,6 @@ const { MongoClient } = require("mongodb");
 let client;
 let db;
 
-/**
- * Kết nối đến cơ sở dữ liệu MongoDB
- * Thực thi trước khi khởi động Express Server
- */
 async function connectDB() {
   if (!client) {
     if (!process.env.MONGODB_URI) {
@@ -19,10 +15,6 @@ async function connectDB() {
   console.log(`Connected to MongoDB: ${process.env.DATABASE_NAME || "aptech_library"}`);
 }
 
-/**
- * Lấy đối tượng Database đã kết nối
- * @returns {import('mongodb').Db} db instance
- */
 function getDB() {
   if (!db) {
     throw new Error("Database has not been connected");

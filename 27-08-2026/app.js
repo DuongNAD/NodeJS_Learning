@@ -8,7 +8,6 @@ const bookRoutes = require("./routes/bookRoutes");
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Middleware CORS cho phép ReactJS Frontend (ví dụ http://localhost:5173) gọi API
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
@@ -22,18 +21,14 @@ app.use((req, res, next) => {
   next();
 });
 
-// Middleware phân tích JSON request body
 app.use(express.json());
 
-// Endpoint kiểm tra sức khỏe server (Root endpoint)
 app.get("/", (req, res) => {
   res.json({ message: "Library API is running" });
 });
 
-// Gắn toàn bộ routes quản lý sách dưới tiền tố /books
 app.use("/books", bookRoutes);
 
-// Khởi động server (chỉ lắng nghe cổng sau khi kết nối MongoDB thành công)
 async function startServer() {
   try {
     await connectDB();
