@@ -17,6 +17,8 @@ Toàn bộ các bài tập đã được tách thành từng repository độc l
 | 5 | **19/08/2026** | Query String, Email, Upload File, Local Modules | [🔗 **nodejs-19-08-2026**](https://github.com/DuongNAD/nodejs-19-08-2026) | ✅ Hoàn thành |
 | 6 | **20/08/2026** | File Upload (Formidable), Middleware Logger | `20-08-2026` | ✅ Hoàn thành |
 | 7 | **22/08/2026** | CRUD Product REST API với Express.js | [🔗 **nodejs-22-08-2026**](https://github.com/DuongNAD/nodejs-22-08-2026) | ✅ Hoàn thành |
+| 8 | **27/08/2026** | Tích hợp MongoDB với Express & CRUD Library API | [🔗 **nodejs-27-08-2026**](https://github.com/DuongNAD/nodejs-27-08-2026) | ✅ Hoàn thành |
+
 
 ---
 
