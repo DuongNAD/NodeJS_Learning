@@ -4,7 +4,7 @@ Tài liệu giáo trình: [HackMD Buổi 04](https://hackmd.io/@kb9Gxj4xSGmnr5aP
 
 ---
 
-## 📁 Cấu trúc thư mục
+## Cấu trúc thư mục
 
 ```text
 15-08-2026/
@@ -21,7 +21,7 @@ Tài liệu giáo trình: [HackMD Buổi 04](https://hackmd.io/@kb9Gxj4xSGmnr5aP
 
 ---
 
-## 🚀 Hướng dẫn chạy & Kiểm thử
+## Hướng dẫn chạy & Kiểm thử
 
 Mỗi file server mặc định chạy trên cổng `http://localhost:3000`. Bạn có thể chạy bằng `node <tên-file>` và kiểm tra bằng trình duyệt, Postman hoặc lệnh `curl`.
 
@@ -43,11 +43,11 @@ node 15-08-2026/bai2.js
 ```
 **Test:**
 - Tìm kiếm có từ khóa: `curl "http://localhost:3000/search?q=nodejs"`
-  👉 Kết quả: `Search keyword: nodejs`
+  Kết quả: `Search keyword: nodejs`
 - Không truyền từ khóa: `curl "http://localhost:3000/search"`
-  👉 Kết quả: `Missing search keyword` (HTTP 400)
+  Kết quả: `Missing search keyword` (HTTP 400)
 - Route khác: `curl "http://localhost:3000/find"`
-  👉 Kết quả: `404 Not Found`
+  Kết quả: `404 Not Found`
 
 ---
 
@@ -147,7 +147,7 @@ node 15-08-2026/bai5.js
 
 ---
 
-## 📝 Đáp án câu hỏi ôn tập
+## Đáp án câu hỏi ôn tập
 
 ### 1. Module `http` dùng để làm gì?
 - **Trả lời**: Module `http` là built-in module của Node.js dùng để khởi tạo HTTP server, lắng nghe các kết nối từ client, tiếp nhận HTTP Request (`req`) và gửi trả HTTP Response (`res`), hoặc khởi tạo HTTP client để gửi request đến server khác mà không cần cài đặt thêm thư viện ngoài.

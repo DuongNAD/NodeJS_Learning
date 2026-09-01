@@ -1,20 +1,20 @@
-# 📚 Library CRUD API (Express.js & MongoDB)
+# Library CRUD API (Express.js & MongoDB)
 
 Bài tập ngày 27/08/2026 - Tích hợp MongoDB với Express xây dựng CRUD API quản lý sách.
 
 ---
 
-## 🔄 Luồng Dữ Liệu (Data Flow)
+## Luồng Dữ Liệu (Data Flow)
 
 ### 1. Sơ đồ tổng quan
 
 ```mermaid
 flowchart LR
-    Client["💻 Client\n(ReactJS / Postman)"] 
-    -->|"1. Gửi Request"| Express["🌐 Express App\n(CORS + express.json)"]
-    -->|"2. Định tuyến & Validate"| Router["🚦 bookRoutes\n(Check data & ObjectId)"]
-    -->|"3. Gọi Collection"| DB["🔌 MongoDB Driver\n(config/db.js)"]
-    -->|"4. Thực thi truy vấn"| Mongo[("🍃 MongoDB\n(Collection: books)")]
+    Client["Client\n(ReactJS / Postman)"] 
+    -->|"1. Gửi Request"| Express["Express App\n(CORS + express.json)"]
+    -->|"2. Định tuyến & Validate"| Router["bookRoutes\n(Check data & ObjectId)"]
+    -->|"3. Gọi Collection"| DB["MongoDB Driver\n(config/db.js)"]
+    -->|"4. Thực thi truy vấn"| Mongo[("MongoDB\n(Collection: books)")]
     
     Mongo -->|"5. Trả kết quả"| DB
     DB --> Router
@@ -37,7 +37,7 @@ flowchart LR
 
 ---
 
-## 📌 Danh Sách API Endpoints
+## Danh Sách API Endpoints
 
 | Method | Endpoint | Mục đích | Status Code |
 | :--- | :--- | :--- | :--- |
@@ -51,7 +51,7 @@ flowchart LR
 
 ---
 
-## 🚀 Cài Đặt & Khởi Chạy
+## Cài Đặt & Khởi Chạy
 
 ```bash
 # 1. Cài đặt dependencies
@@ -72,7 +72,7 @@ npm run test:api
 
 ---
 
-## 💻 Chuẩn Bị Tích Hợp Frontend ReactJS
+## Chuẩn Bị Tích Hợp Frontend ReactJS
 
 - **Cổng kết nối:** Backend chạy cổng `3000`, ReactJS chạy cổng `5173`.
 - **Cấu trúc dữ liệu JSON của 1 cuốn sách:**
