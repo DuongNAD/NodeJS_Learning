@@ -42,46 +42,51 @@ flowchart TD
 
 ### 1.2. So do trinh tu xac thuc va phan quyen (Authentication & Authorization Flow)
 
+#### a. Luong dang nhap va cap JWT Token
+
 ```mermaid
 sequenceDiagram
     participant Client as Client (ReactJS / Postman)
-    participant AuthRouter as /api/auth
-    participant BookRouter as /api/books
-    participant AuthMid as authMiddleware
-    participant RoleMid as roleMiddleware
-    participant Service as Service & Model
+    participant AuthRouter as Express Server (/api/auth)
     participant DB as MongoDB
 
-    Note over Client, DB: 1. Luong dang nhap va nhan JWT
-    Client->>AuthRouter: POST /api/auth/login { email, password }
-    AuthRouter->>Service: loginUser(email, password)
-    Service->>DB: findOne({ email })
-    DB-->>Service: Tra ve user doc
-    Service->>Service: bcrypt.compare(password, user.password)
-    Service->>Service: jwt.sign({ userId, email, role })
-    Service-->>AuthRouter: Tra ve { token, user }
-    AuthRouter-->>Client: 200 OK { success: true, data: { token, user } }
+    Client->>AuthRouter: POST /api/auth/login (email, password)
+    AuthRouter->>DB: Tim user theo email
+    DB-->>AuthRouter: Tra ve thong tin user
+    AuthRouter->>AuthRouter: So sanh password bang bcrypt
+    AuthRouter->>AuthRouter: Tao JWT token chua userId, email, role
+    AuthRouter-->>Client: 200 OK (Tra ve token va thong tin user)
+```
 
-    Note over Client, DB: 2. Luong goi API can quyen Admin (Them/Sua/Xoa sach)
-    Client->>BookRouter: POST /api/books + Header "Authorization: Bearer <token>"
-    BookRouter->>AuthMid: Chuyen request qua authMiddleware
-    AuthMid->>AuthMid: jwt.verify(token)
+#### b. Luong goi API yeu cau quyen Admin (Them/Sua/Xoa sach)
+
+```mermaid
+sequenceDiagram
+    participant Client as Client (ReactJS / Postman)
+    participant Router as bookRoutes (/api/books)
+    participant AuthMid as authMiddleware
+    participant RoleMid as roleMiddleware
+    participant Service as bookService
+    participant DB as MongoDB
+
+    Client->>Router: POST /api/books (kem Bearer Token)
+    Router->>AuthMid: Kiem tra Bearer token
     alt Token thieu hoac khong hop le
-        AuthMid-->>Client: 401 Unauthorized { success: false, message: "..." }
+        AuthMid-->>Client: 401 Unauthorized
     else Token hop le
-        AuthMid->>RoleMid: req.user = decoded; next()
-        RoleMid->>RoleMid: Kiem tra req.user.role === 'admin'
+        AuthMid->>RoleMid: Chuyen tiep request va thong tin req.user
         alt Role khong phai admin
-            RoleMid-->>Client: 403 Forbidden { success: false, message: "..." }
+            RoleMid-->>Client: 403 Forbidden
         else Role la admin
-            RoleMid->>Service: addBook(body, req.user)
+            RoleMid->>Service: Goi addBook(body, req.user)
             Service->>DB: Book.create(...)
-            DB-->>Service: Tra ve book doc
-            Service-->>BookRouter: Tra ve book object
-            BookRouter-->>Client: 201 Created { success: true, data: book }
+            DB-->>Service: Tra ve document sach moi
+            Service-->>Router: Tra ve du lieu sach
+            Router-->>Client: 201 Created (Du lieu sach vua tao)
         end
     end
 ```
+
 
 ### 1.3. Cac buoc xu ly du lieu chi tiet
 
