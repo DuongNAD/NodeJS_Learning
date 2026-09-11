@@ -1,5 +1,6 @@
 const Department = require("../models/Department");
-const { STATUS } = require("../constant");
+const Employee = require("../models/Employee");
+const { STATUS, EMPLOYEE_STATUS } = require("../constant");
 
 const getDepartments = async (req, res, next) => {
   try {
@@ -110,6 +111,17 @@ const deleteDepartment = async (req, res, next) => {
     if (!department) {
       return res.status(404).json({
         message: "Không tìm thấy dữ liệu"
+      });
+    }
+
+    const activeEmployees = await Employee.countDocuments({
+      departmentId: req.params.id,
+      status: { $in: [EMPLOYEE_STATUS.ACTIVE, EMPLOYEE_STATUS.PROBATION] }
+    });
+
+    if (activeEmployees > 0) {
+      return res.status(400).json({
+        message: "Không thể xóa phòng ban vẫn còn nhân viên đang hoạt động"
       });
     }
 

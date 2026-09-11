@@ -19,7 +19,7 @@ Toàn bộ các bài tập đã được tách thành từng repository độc l
 | 7 | **22/08/2026** | CRUD Product REST API với Express.js | [**nodejs-22-08-2026**](https://github.com/DuongNAD/nodejs-22-08-2026) | Hoàn thành |
 | 8 | **27/08/2026** | Tích hợp MongoDB với Express & CRUD Library API | [**nodejs-27-08-2026**](https://github.com/DuongNAD/nodejs-27-08-2026) | Hoàn thành |
 | 9 | **05/09/2026** | JWT Authentication & ExpressJS Mongoose Backend API | [**nodejs-05-09-2026**](https://github.com/DuongNAD/nodejs-05-09-2026) | Hoàn thành |
-| 10 | **08/09/2026** | Authentication & Quản Lý Danh Mục Nhân Sự (JWT, RBAC) | [**nodejs-08-09-2026**](https://github.com/DuongNAD/nodejs-08-09-2026) | Hoàn thành |
+| 10 | **08/09/2026** | HR Management REST API - Bai 1 & Bai 2 (Auth, Danh Muc, Nhan Vien, Cham Cong, Nghi Phep) | [**nodejs-08-09-2026**](https://github.com/DuongNAD/nodejs-08-09-2026) | Hoàn thành |
 
 
 ---

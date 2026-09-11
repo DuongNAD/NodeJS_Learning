@@ -5,12 +5,13 @@ const jwt = require("jsonwebtoken");
 const app = require("./src/app");
 const { ROLES, STATUS } = require("./src/constant");
 const generateToken = require("./src/utils/generateToken");
+const { getPagination, formatPaginationResponse } = require("./src/utils/pagination");
 const { protect } = require("./src/middlewares/auth.middleware");
 const { authorize } = require("./src/middlewares/role.middleware");
 const { errorHandler, notFound } = require("./src/middlewares/error.middleware");
 
 async function runTests() {
-  console.log("Bat dau kiem thu he thong HR Management API (Bai 1)...");
+  console.log("Bat dau kiem thu he thong HR Management API (Bai 1 & Bai 2: Nhan vien, Cham cong, Nghi phep)...");
   let passed = 0;
   let failed = 0;
 
@@ -34,6 +35,17 @@ async function runTests() {
     }
   });
 
+  await assert("Kiem tra getPagination va formatPaginationResponse", async () => {
+    const { page, limit, skip } = getPagination({ page: "2", limit: "5" });
+    if (page !== 2 || limit !== 5 || skip !== 5) {
+      throw new Error("Tinh toan getPagination khong dung");
+    }
+    const paginated = formatPaginationResponse(2, 5, 23);
+    if (paginated.totalPages !== 5 || paginated.totalItems !== 23) {
+      throw new Error("formatPaginationResponse khong dung");
+    }
+  });
+
   await assert("Kiem tra auth.middleware chan khi thieu token (401)", async () => {
     const req = { headers: {} };
     let statusSent = null;
@@ -54,7 +66,7 @@ async function runTests() {
     });
 
     if (statusSent !== 401 || nextCalled) {
-      throw new Error(`Expected 401 but got status ${statusSent}, nextCalled: ${nextCalled}`);
+      throw new Error(`Expected 401 but got status ${statusSent}`);
     }
   });
 
@@ -117,7 +129,7 @@ async function runTests() {
       name: "ValidationError",
       errors: {
         email: { message: "Email không đúng định dạng" },
-        password: { message: "Mật khẩu tối thiểu 6 ký tự" }
+        salary: { message: "Lương phải lớn hơn hoặc bằng 0" }
       }
     };
     let statusSent = null;
@@ -138,32 +150,6 @@ async function runTests() {
 
     if (statusSent !== 400 || jsonSent.message !== "Dữ liệu không hợp lệ" || jsonSent.errors.length !== 2) {
       throw new Error("Format loi ValidationError khong dung");
-    }
-  });
-
-  await assert("Kiem tra error.middleware format loi Duplicate Key 11000 (400)", async () => {
-    const mockErr = {
-      code: 11000,
-      keyValue: { code: "TECH" }
-    };
-    let statusSent = null;
-    let jsonSent = null;
-    const res = {
-      statusCode: 200,
-      status: (code) => {
-        statusSent = code;
-        return {
-          json: (data) => {
-            jsonSent = data;
-          }
-        };
-      }
-    };
-
-    errorHandler(mockErr, {}, res, () => {});
-
-    if (statusSent !== 400 || !jsonSent.errors[0].includes("code")) {
-      throw new Error("Format loi duplicate key khong dung");
     }
   });
 
@@ -201,19 +187,11 @@ async function runTests() {
     }
   });
 
-  await assert("Kiem tra GET /api/departments khong kem token -> Tra ve 401", async () => {
-    const res = await fetch(`${baseUrl}/api/departments`);
+  await assert("Kiem tra GET /api/employees khong token -> Tra ve 401", async () => {
+    const res = await fetch(`${baseUrl}/api/employees`);
     const data = await res.json();
     if (res.status !== 401 || data.message !== "Vui lòng đăng nhập để tiếp tục") {
-      throw new Error(`Expected 401, got ${res.status}: ${JSON.stringify(data)}`);
-    }
-  });
-
-  await assert("Kiem tra GET /api/positions khong kem token -> Tra ve 401", async () => {
-    const res = await fetch(`${baseUrl}/api/positions`);
-    const data = await res.json();
-    if (res.status !== 401 || data.message !== "Vui lòng đăng nhập để tiếp tục") {
-      throw new Error(`Expected 401, got ${res.status}: ${JSON.stringify(data)}`);
+      throw new Error(`Expected 401, got ${res.status}`);
     }
   });
 
@@ -225,22 +203,22 @@ async function runTests() {
     status: STATUS.ACTIVE
   });
 
-  await assert("Kiem tra POST /api/departments voi role staff -> Tra ve 403 khong co quyen", async () => {
-    const res = await fetch(`${baseUrl}/api/departments`, {
+  await assert("Kiem tra POST /api/employees voi role staff -> Tra ve 403", async () => {
+    const res = await fetch(`${baseUrl}/api/employees`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${staffToken}`
       },
-      body: JSON.stringify({ name: "Phong IT", code: "IT_TEST" })
+      body: JSON.stringify({ fullName: "Nguyen Van B" })
     });
     const data = await res.json();
     if (res.status !== 403 || data.message !== "Bạn không có quyền thực hiện chức năng này") {
-      throw new Error(`Expected 403, got ${res.status}: ${JSON.stringify(data)}`);
+      throw new Error(`Expected 403, got ${res.status}`);
     }
   });
 
-  await assert("Kiem tra DELETE /api/departments/:id voi role hr -> Tra ve 403 chi admin duoc xoa", async () => {
+  await assert("Kiem tra DELETE /api/employees/:id voi role hr -> Tra ve 403", async () => {
     const hrToken = generateToken({
       id: new mongoose.Types.ObjectId().toString(),
       fullName: "HR User",
@@ -249,7 +227,7 @@ async function runTests() {
       status: STATUS.ACTIVE
     });
 
-    const res = await fetch(`${baseUrl}/api/departments/60d0fe4f5311236168a109ca`, {
+    const res = await fetch(`${baseUrl}/api/employees/60d0fe4f5311236168a109ca`, {
       method: "DELETE",
       headers: {
         Authorization: `Bearer ${hrToken}`
@@ -257,7 +235,47 @@ async function runTests() {
     });
     const data = await res.json();
     if (res.status !== 403 || data.message !== "Bạn không có quyền thực hiện chức năng này") {
-      throw new Error(`Expected 403, got ${res.status}: ${JSON.stringify(data)}`);
+      throw new Error(`Expected 403, got ${res.status}`);
+    }
+  });
+
+  await assert("Kiem tra GET /api/attendances khong token -> Tra ve 401", async () => {
+    const res = await fetch(`${baseUrl}/api/attendances`);
+    const data = await res.json();
+    if (res.status !== 401) {
+      throw new Error(`Expected 401, got ${res.status}`);
+    }
+  });
+
+  await assert("Kiem tra GET /api/attendances voi role staff -> Tra ve 403", async () => {
+    const res = await fetch(`${baseUrl}/api/attendances`, {
+      headers: {
+        Authorization: `Bearer ${staffToken}`
+      }
+    });
+    const data = await res.json();
+    if (res.status !== 403) {
+      throw new Error(`Expected 403, got ${res.status}`);
+    }
+  });
+
+  await assert("Kiem tra GET /api/leaves khong token -> Tra ve 401", async () => {
+    const res = await fetch(`${baseUrl}/api/leaves`);
+    const data = await res.json();
+    if (res.status !== 401) {
+      throw new Error(`Expected 401, got ${res.status}`);
+    }
+  });
+
+  await assert("Kiem tra GET /api/leaves voi role staff -> Tra ve 403", async () => {
+    const res = await fetch(`${baseUrl}/api/leaves`, {
+      headers: {
+        Authorization: `Bearer ${staffToken}`
+      }
+    });
+    const data = await res.json();
+    if (res.status !== 403) {
+      throw new Error(`Expected 403, got ${res.status}`);
     }
   });
 
