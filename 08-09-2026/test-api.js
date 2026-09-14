@@ -203,6 +203,14 @@ async function runTests() {
     status: STATUS.ACTIVE
   });
 
+  const hrToken = generateToken({
+    id: new mongoose.Types.ObjectId().toString(),
+    fullName: "HR User",
+    email: "hr@example.com",
+    role: ROLES.HR,
+    status: STATUS.ACTIVE
+  });
+
   await assert("Kiem tra POST /api/employees voi role staff -> Tra ve 403", async () => {
     const res = await fetch(`${baseUrl}/api/employees`, {
       method: "POST",
@@ -219,14 +227,6 @@ async function runTests() {
   });
 
   await assert("Kiem tra DELETE /api/employees/:id voi role hr -> Tra ve 403", async () => {
-    const hrToken = generateToken({
-      id: new mongoose.Types.ObjectId().toString(),
-      fullName: "HR User",
-      email: "hr@example.com",
-      role: ROLES.HR,
-      status: STATUS.ACTIVE
-    });
-
     const res = await fetch(`${baseUrl}/api/employees/60d0fe4f5311236168a109ca`, {
       method: "DELETE",
       headers: {
@@ -269,6 +269,182 @@ async function runTests() {
 
   await assert("Kiem tra GET /api/leaves voi role staff -> Tra ve 403", async () => {
     const res = await fetch(`${baseUrl}/api/leaves`, {
+      headers: {
+        Authorization: `Bearer ${staffToken}`
+      }
+    });
+    const data = await res.json();
+    if (res.status !== 403) {
+      throw new Error(`Expected 403, got ${res.status}`);
+    }
+  });
+
+  const { exportCsv } = require("./src/utils/exportCsv");
+  const User = require("./src/models/User");
+  const Employee = require("./src/models/Employee");
+
+  await assert("Kiem tra User schema co chua cac truong avatarUrl, phone, address", async () => {
+    const userPaths = User.schema.paths;
+    if (!userPaths.avatarUrl || !userPaths.phone || !userPaths.address) {
+      throw new Error("User schema thieu truong avatarUrl, phone, hoac address");
+    }
+  });
+
+  await assert("Kiem tra Employee schema co chua cac truong avatarUrl, note", async () => {
+    const employeePaths = Employee.schema.paths;
+    if (!employeePaths.avatarUrl || !employeePaths.note) {
+      throw new Error("Employee schema thieu truong avatarUrl hoac note");
+    }
+  });
+
+  await assert("Kiem tra utility exportCsv tao noi dung CSV dung format kem BOM", async () => {
+    const mockData = [
+      {
+        employeeCode: "NV001",
+        fullName: "Nguyen Van A",
+        email: "a@example.com",
+        phone: "0901234567",
+        department: "Ky thuat",
+        position: "Lap trinh vien",
+        status: "active"
+      }
+    ];
+    const csv = exportCsv(mockData);
+    if (!csv.startsWith("\uFEFF")) {
+      throw new Error("CSV khong bat dau bang BOM UTF-8");
+    }
+    if (!csv.includes("Mã nhân viên")) {
+      throw new Error("CSV thieu header");
+    }
+    if (!csv.includes("NV001") || !csv.includes("Nguyen Van A")) {
+      throw new Error("CSV thieu du lieu");
+    }
+  });
+
+  await assert("Kiem tra GET /api/profile khong token -> Tra ve 401", async () => {
+    const res = await fetch(`${baseUrl}/api/profile`);
+    const data = await res.json();
+    if (res.status !== 401) {
+      throw new Error(`Expected 401, got ${res.status}`);
+    }
+  });
+
+  await assert("Kiem tra PATCH /api/profile/change-password thieu du lieu -> Tra ve 400", async () => {
+    const res = await fetch(`${baseUrl}/api/profile/change-password`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${staffToken}`
+      },
+      body: JSON.stringify({})
+    });
+    const data = await res.json();
+    if (res.status !== 400) {
+      throw new Error(`Expected 400, got ${res.status}`);
+    }
+  });
+
+  await assert("Kiem tra PATCH /api/profile/change-password mat khau moi < 6 ky tu -> Tra ve 400", async () => {
+    const res = await fetch(`${baseUrl}/api/profile/change-password`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${staffToken}`
+      },
+      body: JSON.stringify({ oldPassword: "123", newPassword: "123" })
+    });
+    const data = await res.json();
+    if (res.status !== 400 || !data.message.includes("tối thiểu 6 ký tự")) {
+      throw new Error(`Expected 400 minlength error, got ${res.status}`);
+    }
+  });
+
+  await assert("Kiem tra GET /api/statistics/overview voi role staff -> Tra ve 403", async () => {
+    const res = await fetch(`${baseUrl}/api/statistics/overview`, {
+      headers: {
+        Authorization: `Bearer ${staffToken}`
+      }
+    });
+    const data = await res.json();
+    if (res.status !== 403) {
+      throw new Error(`Expected 403, got ${res.status}`);
+    }
+  });
+
+  await assert("Kiem tra GET /api/statistics/departments voi role staff -> Tra ve 403", async () => {
+    const res = await fetch(`${baseUrl}/api/statistics/departments`, {
+      headers: {
+        Authorization: `Bearer ${staffToken}`
+      }
+    });
+    const data = await res.json();
+    if (res.status !== 403) {
+      throw new Error(`Expected 403, got ${res.status}`);
+    }
+  });
+
+  await assert("Kiem tra GET /api/statistics/positions voi role staff -> Tra ve 403", async () => {
+    const res = await fetch(`${baseUrl}/api/statistics/positions`, {
+      headers: {
+        Authorization: `Bearer ${staffToken}`
+      }
+    });
+    const data = await res.json();
+    if (res.status !== 403) {
+      throw new Error(`Expected 403, got ${res.status}`);
+    }
+  });
+
+  await assert("Kiem tra GET /api/employees/birthdays voi role staff -> Tra ve 403", async () => {
+    const res = await fetch(`${baseUrl}/api/employees/birthdays`, {
+      headers: {
+        Authorization: `Bearer ${staffToken}`
+      }
+    });
+    const data = await res.json();
+    if (res.status !== 403) {
+      throw new Error(`Expected 403, got ${res.status}`);
+    }
+  });
+
+  await assert("Kiem tra GET /api/employees/birthdays thang khong hop le -> Tra ve 400", async () => {
+    const res = await fetch(`${baseUrl}/api/employees/birthdays?month=15`, {
+      headers: {
+        Authorization: `Bearer ${hrToken}`
+      }
+    });
+    const data = await res.json();
+    if (res.status !== 400) {
+      throw new Error(`Expected 400, got ${res.status}`);
+    }
+  });
+
+  await assert("Kiem tra GET /api/employees/probation-ending voi role staff -> Tra ve 403", async () => {
+    const res = await fetch(`${baseUrl}/api/employees/probation-ending`, {
+      headers: {
+        Authorization: `Bearer ${staffToken}`
+      }
+    });
+    const data = await res.json();
+    if (res.status !== 403) {
+      throw new Error(`Expected 403, got ${res.status}`);
+    }
+  });
+
+  await assert("Kiem tra GET /api/employees/probation-ending so ngay am -> Tra ve 400", async () => {
+    const res = await fetch(`${baseUrl}/api/employees/probation-ending?days=-5`, {
+      headers: {
+        Authorization: `Bearer ${hrToken}`
+      }
+    });
+    const data = await res.json();
+    if (res.status !== 400) {
+      throw new Error(`Expected 400, got ${res.status}`);
+    }
+  });
+
+  await assert("Kiem tra GET /api/employees/export voi role staff -> Tra ve 403", async () => {
+    const res = await fetch(`${baseUrl}/api/employees/export`, {
       headers: {
         Authorization: `Bearer ${staffToken}`
       }

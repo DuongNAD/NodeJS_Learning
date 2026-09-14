@@ -3,6 +3,7 @@ const Department = require("../models/Department");
 const Position = require("../models/Position");
 const { EMPLOYEE_STATUS } = require("../utils/constant");
 const { getPagination, formatPaginationResponse } = require("../utils/pagination");
+const { exportCsv } = require("../utils/exportCsv");
 
 const getEmployees = async (req, res, next) => {
   try {
@@ -96,7 +97,9 @@ const createEmployee = async (req, res, next) => {
       managerId,
       salary,
       startDate,
-      status
+      status,
+      avatarUrl,
+      note
     } = req.body;
 
     if (employeeCode) {
@@ -157,7 +160,9 @@ const createEmployee = async (req, res, next) => {
       managerId: managerId || null,
       salary,
       startDate,
-      status
+      status,
+      avatarUrl: avatarUrl ? avatarUrl.trim() : "",
+      note: note ? note.trim() : ""
     });
 
     const populatedEmployee = await Employee.findById(employee._id)
@@ -197,7 +202,9 @@ const updateEmployee = async (req, res, next) => {
       managerId,
       salary,
       startDate,
-      status
+      status,
+      avatarUrl,
+      note
     } = req.body;
 
     if (employeeCode && employeeCode.trim() !== employee.employeeCode) {
@@ -273,6 +280,8 @@ const updateEmployee = async (req, res, next) => {
     if (salary !== undefined) employee.salary = salary;
     if (startDate !== undefined) employee.startDate = startDate;
     if (status !== undefined) employee.status = status;
+    if (avatarUrl !== undefined) employee.avatarUrl = avatarUrl.trim();
+    if (note !== undefined) employee.note = note.trim();
 
     await employee.save();
 
@@ -312,10 +321,147 @@ const deleteEmployee = async (req, res, next) => {
   }
 };
 
+const getBirthdays = async (req, res, next) => {
+  try {
+    const targetMonth = req.query.month
+      ? parseInt(req.query.month, 10)
+      : new Date().getMonth() + 1;
+
+    if (isNaN(targetMonth) || targetMonth < 1 || targetMonth > 12) {
+      return res.status(400).json({
+        message: "Dữ liệu không hợp lệ",
+        errors: ["Tháng phải là số từ 1 đến 12"]
+      });
+    }
+
+    const employees = await Employee.find({
+      status: { $ne: EMPLOYEE_STATUS.INACTIVE },
+      dateOfBirth: { $exists: true, $ne: null },
+      $expr: {
+        $eq: [{ $month: "$dateOfBirth" }, targetMonth]
+      }
+    })
+      .populate("departmentId", "name code")
+      .populate("positionId", "name code baseSalary")
+      .populate("managerId", "employeeCode fullName email");
+
+    res.status(200).json({
+      message: "Lấy danh sách nhân viên có sinh nhật trong tháng thành công",
+      data: employees
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getProbationEnding = async (req, res, next) => {
+  try {
+    const daysParam =
+      req.query.days !== undefined ? parseInt(req.query.days, 10) : 7;
+
+    if (isNaN(daysParam) || daysParam < 0) {
+      return res.status(400).json({
+        message: "Dữ liệu không hợp lệ",
+        errors: ["Số ngày phải là số lớn hơn hoặc bằng 0"]
+      });
+    }
+
+    const now = new Date();
+    const todayStart = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      0,
+      0,
+      0,
+      0
+    );
+    const futureLimit = new Date(
+      todayStart.getTime() + (daysParam + 1) * 24 * 60 * 60 * 1000 - 1
+    );
+
+    const minStartDate = new Date(
+      todayStart.getTime() - 60 * 24 * 60 * 60 * 1000
+    );
+    const maxStartDate = new Date(
+      futureLimit.getTime() - 60 * 24 * 60 * 60 * 1000
+    );
+
+    const employees = await Employee.find({
+      status: EMPLOYEE_STATUS.PROBATION,
+      startDate: {
+        $gte: minStartDate,
+        $lte: maxStartDate
+      }
+    })
+      .populate("departmentId", "name code")
+      .populate("positionId", "name code baseSalary")
+      .populate("managerId", "employeeCode fullName email");
+
+    const data = employees.map((emp) => {
+      const obj = emp.toObject();
+      obj.probationEndDate = new Date(
+        emp.startDate.getTime() + 60 * 24 * 60 * 60 * 1000
+      );
+      return obj;
+    });
+
+    res.status(200).json({
+      message: "Lấy danh sách nhân viên sắp hết thử việc thành công",
+      data
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const exportEmployees = async (req, res, next) => {
+  try {
+    const format = (req.query.format || "json").toLowerCase().trim();
+
+    const employees = await Employee.find({
+      status: { $ne: EMPLOYEE_STATUS.INACTIVE }
+    })
+      .populate("departmentId", "name code")
+      .populate("positionId", "name code");
+
+    const formattedData = employees.map((emp) => ({
+      employeeCode: emp.employeeCode,
+      fullName: emp.fullName,
+      email: emp.email,
+      phone: emp.phone,
+      department: emp.departmentId ? emp.departmentId.name : "",
+      position: emp.positionId ? emp.positionId.name : "",
+      status: emp.status
+    }));
+
+    if (format === "csv") {
+      const csvContent = exportCsv(formattedData);
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader(
+        "Content-Disposition",
+        'attachment; filename="employees.csv"'
+      );
+      return res.status(200).send(csvContent);
+    }
+
+    res.status(200).json({
+      message: "Xuất danh sách nhân viên thành công",
+      data: formattedData
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getEmployees,
   getEmployeeById,
   createEmployee,
   updateEmployee,
-  deleteEmployee
+  deleteEmployee,
+  getBirthdays,
+  getProbationEnding,
+  exportEmployees
 };
+

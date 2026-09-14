@@ -8,6 +8,8 @@ const positionRoutes = require("./routes/position.routes");
 const employeeRoutes = require("./routes/employee.routes");
 const attendanceRoutes = require("./routes/attendance.routes");
 const leaveRoutes = require("./routes/leave.routes");
+const profileRoutes = require("./routes/profile.routes");
+const statisticRoutes = require("./routes/statistic.routes");
 const { notFound, errorHandler } = require("./middlewares/error.middleware");
 
 const app = express();
@@ -32,6 +34,8 @@ app.use("/api/positions", positionRoutes);
 app.use("/api/employees", employeeRoutes);
 app.use("/api/attendances", attendanceRoutes);
 app.use("/api/leaves", leaveRoutes);
+app.use("/api/profile", profileRoutes);
+app.use("/api/statistics", statisticRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

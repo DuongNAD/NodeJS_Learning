@@ -40,6 +40,21 @@ const userSchema = new mongoose.Schema(
         message: `Trạng thái chỉ nhận: ${STATUS_LIST.join(", ")}`
       },
       default: STATUS.ACTIVE
+    },
+    avatarUrl: {
+      type: String,
+      default: "",
+      trim: true
+    },
+    phone: {
+      type: String,
+      default: "",
+      trim: true
+    },
+    address: {
+      type: String,
+      default: "",
+      trim: true
     }
   },
   {

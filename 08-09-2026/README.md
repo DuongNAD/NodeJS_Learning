@@ -1,6 +1,6 @@
-# HR Management API - Bai 1 va Bai 2
+# HR Management API - Bai 1, Bai 2 va Bai 3
 
-He thong REST API quan ly nhan su gom xac thuc JWT, phan quyen vai tro (admin, hr, staff), quan ly phong ban, chuc vu, ho so nhan vien, cham cong va nghi phep.
+He thong REST API quan ly nhan su gom: Authentication (JWT), phan quyen vai tro (admin, hr, staff), quan ly phong ban, chuc vu, ho so nhan vien, cham cong, nghi phep, ho so ca nhan, thong ke va xuat bao cao CSV/JSON.
 
 ---
 
@@ -29,7 +29,7 @@ flowchart TD
     Model -->|"Database operation"| DB[("MongoDB")]
     DB --> Model
     Model --> Controller
-    Controller -->|"JSON Response"| Client
+    Controller -->|"JSON / CSV Response"| Client
 
     Router -.->|"Error / Not Found"| ErrorMid
     ErrorMid -.->|"Format JSON Error"| Client
@@ -47,7 +47,15 @@ flowchart TD
 | POST | /api/auth/login | Dang nhap va nhan JWT token | Public |
 | GET | /api/auth/me | Thong tin user hien tai | User da dang nhap |
 
-### 2.2. Phong Ban (/api/departments)
+### 2.2. Ho So Ca Nhan (/api/profile)
+
+| Method | Endpoint | Mo ta | Quyen |
+|---|---|---|---|
+| GET | /api/profile | Xem ho so ca nhan | admin, hr, staff |
+| PUT | /api/profile | Cap nhat ho so (fullName, phone, address, avatarUrl) | admin, hr, staff |
+| PATCH | /api/profile/change-password | Doi mat khau (kiem tra oldPassword, newPassword min 6 ky tu) | admin, hr, staff |
+
+### 2.3. Phong Ban (/api/departments)
 
 | Method | Endpoint | Mo ta | Quyen |
 |---|---|---|---|
@@ -57,7 +65,7 @@ flowchart TD
 | PUT | /api/departments/:id | Cap nhat phong ban | admin, hr |
 | DELETE | /api/departments/:id | Xoa mem phong ban (chan neu con nhan vien) | admin |
 
-### 2.3. Chuc Vu (/api/positions)
+### 2.4. Chuc Vu (/api/positions)
 
 | Method | Endpoint | Mo ta | Quyen |
 |---|---|---|---|
@@ -67,17 +75,20 @@ flowchart TD
 | PUT | /api/positions/:id | Cap nhat chuc vu | admin, hr |
 | DELETE | /api/positions/:id | Xoa mem chuc vu (chan neu con nhan vien) | admin |
 
-### 2.4. Nhan Vien (/api/employees)
+### 2.5. Nhan Vien (/api/employees)
 
 | Method | Endpoint | Mo ta | Quyen |
 |---|---|---|---|
 | GET | /api/employees | Danh sach nhan vien (loc, tim kiem, phan trang, sort, populate) | admin, hr, staff |
+| GET | /api/employees/birthdays | Loc nhan vien co sinh nhat theo thang (?month=...) | admin, hr |
+| GET | /api/employees/probation-ending | Loc nhan vien sap het thu viec trong X ngay (?days=...) | admin, hr |
+| GET | /api/employees/export | Xuat danh sach nhan vien (?format=json hoac ?format=csv) | admin, hr |
 | GET | /api/employees/:id | Chi tiet nhan vien (kem phong ban, chuc vu, quan ly) | admin, hr, staff |
-| POST | /api/employees | Them nhan vien moi | admin, hr |
-| PUT | /api/employees/:id | Cap nhat nhan vien | admin, hr |
+| POST | /api/employees | Them nhan vien moi (ho tro avatarUrl, note) | admin, hr |
+| PUT | /api/employees/:id | Cap nhat nhan vien (ho tro avatarUrl, note) | admin, hr |
 | DELETE | /api/employees/:id | Xoa mem nhan vien | admin |
 
-### 2.5. Cham Cong (/api/attendances)
+### 2.6. Cham Cong (/api/attendances)
 
 | Method | Endpoint | Mo ta | Quyen |
 |---|---|---|---|
@@ -87,7 +98,7 @@ flowchart TD
 | GET | /api/attendances/me | Lich su cham cong ca nhan | admin, hr, staff |
 | GET | /api/attendances/employee/:employeeId | Cham cong theo nhan vien | admin, hr |
 
-### 2.6. Nghi Phep (/api/leaves)
+### 2.7. Nghi Phep (/api/leaves)
 
 | Method | Endpoint | Mo ta | Quyen |
 |---|---|---|---|
@@ -97,6 +108,14 @@ flowchart TD
 | GET | /api/leaves/:id | Chi tiet don nghi phep | admin, hr, staff |
 | PATCH | /api/leaves/:id/approve | Duyet don nghi phep | admin, hr |
 | PATCH | /api/leaves/:id/reject | Tu choi don nghi phep | admin, hr |
+
+### 2.8. Thong Ke (/api/statistics)
+
+| Method | Endpoint | Mo ta | Quyen |
+|---|---|---|---|
+| GET | /api/statistics/overview | Thong ke tong quan so luong nhan vien, phong ban, chuc vu | admin, hr |
+| GET | /api/statistics/departments | Thong ke so luong nhan vien theo phong ban | admin, hr |
+| GET | /api/statistics/positions | Thong ke so luong nhan vien theo chuc vu | admin, hr |
 
 ---
 

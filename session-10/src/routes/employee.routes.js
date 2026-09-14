@@ -4,7 +4,10 @@ const {
   getEmployeeById,
   createEmployee,
   updateEmployee,
-  deleteEmployee
+  deleteEmployee,
+  getBirthdays,
+  getProbationEnding,
+  exportEmployees
 } = require("../controllers/employee.controller");
 const { protect } = require("../middlewares/auth.middleware");
 const { authorize } = require("../middlewares/role.middleware");
@@ -18,6 +21,18 @@ router
   .route("/")
   .get(authorize(ROLES.ADMIN, ROLES.HR, ROLES.STAFF), getEmployees)
   .post(authorize(ROLES.ADMIN, ROLES.HR), createEmployee);
+
+router
+  .route("/birthdays")
+  .get(authorize(ROLES.ADMIN, ROLES.HR), getBirthdays);
+
+router
+  .route("/probation-ending")
+  .get(authorize(ROLES.ADMIN, ROLES.HR), getProbationEnding);
+
+router
+  .route("/export")
+  .get(authorize(ROLES.ADMIN, ROLES.HR), exportEmployees);
 
 router
   .route("/:id")

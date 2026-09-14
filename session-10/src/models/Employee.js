@@ -82,6 +82,16 @@ const employeeSchema = new mongoose.Schema(
         message: "Trạng thái phải là một trong các giá trị: " + EMPLOYEE_STATUS_LIST.join(", ")
       },
       default: EMPLOYEE_STATUS.PROBATION
+    },
+    avatarUrl: {
+      type: String,
+      default: "",
+      trim: true
+    },
+    note: {
+      type: String,
+      default: "",
+      trim: true
     }
   },
   {
