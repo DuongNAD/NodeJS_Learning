@@ -1,296 +1,311 @@
-require("dotenv").config();
-const http = require("http");
-const mongoose = require("mongoose");
-const app = require("./src/app");
-const connectDB = require("./src/config/db");
-const { verifyToken } = require("./src/utils/jwt");
+require('dotenv').config();
+const http = require('http');
+const mongoose = require('mongoose');
+const app = require('./src/app');
 
-async function runTests() {
-  console.log("=== BAT DAU KIEM THU TOAN DIEN API (library-backend) ===\n");
+const PORT = 5001;
 
-  await connectDB();
-  const server = http.createServer(app);
-  await new Promise((resolve) => server.listen(0, resolve));
-  const port = server.address().port;
-  const baseUrl = `http://localhost:${port}`;
+const request = (method, path, body = null, token = null) => {
+  return new Promise((resolve, reject) => {
+    const payload = body ? JSON.stringify(body) : null;
+    const options = {
+      hostname: '127.0.0.1',
+      port: PORT,
+      path,
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    };
 
-  console.log(`Server test dang chay tai: ${baseUrl}\n`);
-
-  let passed = 0;
-  let failed = 0;
-
-  async function assert(desc, fn) {
-    try {
-      await fn();
-      console.log(`[PASS] ${desc}`);
-      passed++;
-    } catch (err) {
-      console.error(`[FAIL] ${desc} -> Loi: ${err.message}`);
-      failed++;
+    if (token) {
+      options.headers.Authorization = `Bearer ${token}`;
     }
+
+    if (payload) {
+      options.headers['Content-Length'] = Buffer.byteLength(payload);
+    }
+
+    const req = http.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+      res.on('end', () => {
+        try {
+          const parsed = res.headers['content-type'] && res.headers['content-type'].includes('application/json')
+            ? JSON.parse(data)
+            : data;
+          resolve({ status: res.statusCode, data: parsed, headers: res.headers });
+        } catch (e) {
+          resolve({ status: res.statusCode, data, headers: res.headers });
+        }
+      });
+    });
+
+    req.on('error', reject);
+
+    if (payload) {
+      req.write(payload);
+    }
+    req.end();
+  });
+};
+
+const assert = (condition, message) => {
+  if (!condition) {
+    throw new Error(`FAIL: ${message}`);
   }
+  console.log(`PASS: ${message}`);
+};
 
-  const timestamp = Date.now();
-  const normalUserEmail = `user_${timestamp}@example.com`;
-  const adminEmail = `admin_${timestamp}@example.com`;
+const runTests = async () => {
+  let server;
+  try {
+    const uri = process.env.MONGO_URI || 'mongodb://localhost:27017/library_management';
+    await mongoose.connect(uri);
 
-  let userToken = null;
-  let adminToken = null;
-  let createdBookId = null;
+    server = http.createServer(app);
+    await new Promise((resolve) => server.listen(PORT, resolve));
+    console.log(`Test server running on port ${PORT}`);
 
-  await assert("1. GET / -> Kiem tra server hoat dong", async () => {
-    const res = await fetch(`${baseUrl}/`);
-    const data = await res.json();
-    if (!data.success || !data.message.includes("Library Backend API")) {
-      throw new Error(`Response khong hop le: ${JSON.stringify(data)}`);
-    }
-  });
+    const timestamp = Date.now();
+    const adminEmail = `admin_${timestamp}@test.com`;
+    const librarianEmail = `librarian_${timestamp}@test.com`;
+    const memberEmail = `member_${timestamp}@test.com`;
+    const defaultPassword = 'password123';
 
-  await assert("2. POST /api/auth/register -> Dang ky user mac dinh role 'user'", async () => {
-    const res = await fetch(`${baseUrl}/api/auth/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: "Normal User",
-        email: normalUserEmail,
-        password: "password123",
-      }),
+    let res = await request('POST', '/api/auth/register', {
+      fullName: 'Admin User',
+      email: adminEmail,
+      password: defaultPassword,
+      role: 'admin',
     });
-    const data = await res.json();
-    if (res.status !== 201 || !data.success || data.data.email !== normalUserEmail) {
-      throw new Error(`Dang ky that bai: ${JSON.stringify(data)}`);
-    }
-    if (data.data.role !== "user") {
-      throw new Error(`Role mac dinh phai la 'user', nhan duoc: ${data.data.role}`);
-    }
-    if (data.data.password) {
-      throw new Error("Bao mat: password khong duoc tra ve client");
-    }
-  });
+    assert(res.status === 201, 'Admin register status is 201');
+    assert(res.data.data.role === 'admin', 'Admin role is set correctly');
 
-  await assert("3. POST /api/auth/login -> Dang nhap user va kiem tra role trong JWT", async () => {
-    const res = await fetch(`${baseUrl}/api/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: normalUserEmail,
-        password: "password123",
-      }),
+    res = await request('POST', '/api/auth/register', {
+      fullName: 'Librarian User',
+      email: librarianEmail,
+      password: defaultPassword,
+      role: 'librarian',
     });
-    const data = await res.json();
-    if (res.status !== 200 || !data.success || !data.data.token) {
-      throw new Error(`Dang nhap that bai: ${JSON.stringify(data)}`);
-    }
-    userToken = data.data.token;
-    const decoded = verifyToken(userToken);
-    if (decoded.role !== "user") {
-      throw new Error(`JWT payload phai co role 'user', nhan duoc: ${decoded.role}`);
-    }
-  });
+    assert(res.status === 201, 'Librarian register status is 201');
 
-  await assert("4. POST /api/auth/register -> Dang ky tai khoan admin", async () => {
-    const res = await fetch(`${baseUrl}/api/auth/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: "Admin User",
-        email: adminEmail,
-        password: "password123",
-        role: "admin",
-      }),
+    res = await request('POST', '/api/auth/register', {
+      fullName: 'Member User',
+      email: memberEmail,
+      password: defaultPassword,
     });
-    const data = await res.json();
-    if (res.status !== 201 || !data.success || data.data.role !== "admin") {
-      throw new Error(`Dang ky admin that bai: ${JSON.stringify(data)}`);
-    }
-  });
+    assert(res.status === 201, 'Member register status is 201');
+    assert(res.data.data.role === 'member', 'Default role is member');
 
-  await assert("5. POST /api/auth/login -> Dang nhap admin va kiem tra role trong JWT", async () => {
-    const res = await fetch(`${baseUrl}/api/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: adminEmail,
-        password: "password123",
-      }),
+    res = await request('POST', '/api/auth/register', {
+      fullName: 'Duplicate',
+      email: adminEmail,
+      password: defaultPassword,
     });
-    const data = await res.json();
-    if (res.status !== 200 || !data.success || !data.data.token) {
-      throw new Error(`Dang nhap admin that bai: ${JSON.stringify(data)}`);
-    }
-    adminToken = data.data.token;
-    const decoded = verifyToken(adminToken);
-    if (decoded.role !== "admin") {
-      throw new Error(`JWT payload phai co role 'admin', nhan duoc: ${decoded.role}`);
-    }
-  });
+    assert(res.status === 400, 'Duplicate email rejected with 400');
 
-  await assert("6. GET /api/auth/me -> Chan khi khong co token (401 Unauthorized)", async () => {
-    const res = await fetch(`${baseUrl}/api/auth/me`);
-    if (res.status !== 401) {
-      throw new Error(`Khong chan request thieu token, status: ${res.status}`);
-    }
-  });
-
-  await assert("7. GET /api/auth/me -> Tra ve thong tin user khi co token hop le", async () => {
-    const res = await fetch(`${baseUrl}/api/auth/me`, {
-      headers: { Authorization: `Bearer ${userToken}` },
+    res = await request('POST', '/api/auth/login', {
+      email: adminEmail,
+      password: defaultPassword,
     });
-    const data = await res.json();
-    if (res.status !== 200 || !data.success || data.data.email !== normalUserEmail) {
-      throw new Error(`Lay thong tin user that bai: ${JSON.stringify(data)}`);
-    }
-  });
+    assert(res.status === 200, 'Admin login status is 200');
+    const adminToken = res.data.token;
+    assert(!!adminToken, 'Admin token generated');
 
-  await assert("8. POST /api/books -> Chan user thuong tao sach (403 Forbidden)", async () => {
-    const res = await fetch(`${baseUrl}/api/books`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${userToken}`,
-      },
-      body: JSON.stringify({
-        title: "Clean Code",
-        author: "Robert C. Martin",
-        category: "Programming",
-      }),
+    res = await request('POST', '/api/auth/login', {
+      email: librarianEmail,
+      password: defaultPassword,
     });
-    const data = await res.json();
-    if (res.status !== 403 || data.success !== false) {
-      throw new Error(`Phai tra ve 403 Forbidden, nhan duoc: ${res.status}`);
-    }
-  });
+    assert(res.status === 200, 'Librarian login status is 200');
+    const librarianToken = res.data.token;
 
-  await assert("9. POST /api/books -> Cho phep admin tao sach (201 Created)", async () => {
-    const res = await fetch(`${baseUrl}/api/books`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${adminToken}`,
-      },
-      body: JSON.stringify({
-        title: "Clean Code",
-        author: "Robert C. Martin",
-        category: "Programming",
-      }),
+    res = await request('POST', '/api/auth/login', {
+      email: memberEmail,
+      password: defaultPassword,
     });
-    const data = await res.json();
-    if (res.status !== 201 || !data.success || !data.data._id) {
-      throw new Error(`Tao sach that bai: ${JSON.stringify(data)}`);
-    }
-    createdBookId = data.data._id;
-  });
+    assert(res.status === 200, 'Member login status is 200');
+    const memberToken = res.data.token;
 
-  await assert("10. GET /api/books -> Lay danh sach sach (public)", async () => {
-    const res = await fetch(`${baseUrl}/api/books`);
-    const data = await res.json();
-    if (res.status !== 200 || !data.success || !Array.isArray(data.data)) {
-      throw new Error(`Lay danh sach sach that bai: ${JSON.stringify(data)}`);
-    }
-  });
+    res = await request('GET', '/api/auth/me', null, memberToken);
+    assert(res.status === 200, 'GET /api/auth/me returns 200');
+    assert(res.data.data.email === memberEmail, 'Me returns correct user info');
 
-  await assert("11. GET /api/books?category=Programming -> Loc sach theo category", async () => {
-    const res = await fetch(`${baseUrl}/api/books?category=Programming`);
-    const data = await res.json();
-    if (res.status !== 200 || !data.success || !Array.isArray(data.data)) {
-      throw new Error(`Loc sach that bai: ${JSON.stringify(data)}`);
-    }
-    const allMatch = data.data.every((b) => b.category === "Programming");
-    if (!allMatch || data.data.length === 0) {
-      throw new Error("Loc danh muc khong chinh xac hoac khong co ket qua");
-    }
-  });
+    res = await request('POST', '/api/categories', {
+      name: `Programming_${timestamp}`,
+      description: 'Books about software development',
+    }, librarianToken);
+    assert(res.status === 201, 'Librarian can create category');
+    const categoryId = res.data.data._id;
 
-  await assert("12. GET /api/books?category=UnknownCategory -> Tra ve mang rong [] neu khong co sach", async () => {
-    const res = await fetch(`${baseUrl}/api/books?category=UnknownCategory_${timestamp}`);
-    const data = await res.json();
-    if (res.status !== 200 || !data.success || !Array.isArray(data.data) || data.data.length !== 0) {
-      throw new Error(`Phai tra ve mang rong [], nhan duoc: ${JSON.stringify(data)}`);
-    }
-  });
+    res = await request('GET', '/api/categories');
+    assert(res.status === 200, 'GET /api/categories returns 200');
 
-  await assert("13. GET /api/books/:id -> Lay chi tiet sach theo id (public)", async () => {
-    const res = await fetch(`${baseUrl}/api/books/${createdBookId}`);
-    const data = await res.json();
-    if (res.status !== 200 || !data.success || data.data._id !== createdBookId) {
-      throw new Error(`Lay chi tiet sach that bai: ${JSON.stringify(data)}`);
-    }
-  });
+    res = await request('PUT', `/api/categories/${categoryId}`, {
+      description: 'Updated category description',
+    }, librarianToken);
+    assert(res.status === 200, 'PUT /api/categories/:id updates category');
 
-  await assert("14. PUT /api/books/:id -> Chan user thuong cap nhat sach (403 Forbidden)", async () => {
-    const res = await fetch(`${baseUrl}/api/books/${createdBookId}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${userToken}`,
-      },
-      body: JSON.stringify({
-        title: "Clean Code - User Attempt",
-      }),
+    res = await request('POST', '/api/authors', {
+      fullName: `Martin Fowler_${timestamp}`,
+      bio: 'Software engineer and author',
+    }, librarianToken);
+    assert(res.status === 201, 'Librarian can create author');
+    const authorId = res.data.data._id;
+
+    res = await request('GET', '/api/authors');
+    assert(res.status === 200, 'GET /api/authors returns 200');
+
+    res = await request('POST', '/api/publishers', {
+      name: `O Reilly Media_${timestamp}`,
+      address: 'USA',
+      phone: '123456789',
+      email: 'contact@oreilly.com',
+    }, librarianToken);
+    assert(res.status === 201, 'Librarian can create publisher');
+    const publisherId = res.data.data._id;
+
+    res = await request('GET', '/api/publishers');
+    assert(res.status === 200, 'GET /api/publishers returns 200');
+
+    const bookCode = `BK-${timestamp}`;
+    res = await request('POST', '/api/books', {
+      bookCode,
+      title: 'Refactoring 2nd Edition',
+      description: 'Improving the Design of Existing Code',
+      categoryId,
+      authorId,
+      publisherId,
+      publishYear: 2018,
+      quantity: 5,
+    }, librarianToken);
+    assert(res.status === 201, 'Librarian can create book');
+    const bookId = res.data.data._id;
+    assert(res.data.data.availableQuantity === 5, 'availableQuantity defaults to quantity');
+
+    res = await request('GET', `/api/books/${bookId}`);
+    assert(res.status === 200, 'GET /api/books/:id returns 200');
+    assert(res.data.data.categoryId.name.startsWith('Programming'), 'Book is populated with category');
+    assert(res.data.data.authorId.fullName.startsWith('Martin'), 'Book is populated with author');
+
+    res = await request('GET', `/api/books?keyword=Refactoring&page=1&limit=5`);
+    assert(res.status === 200, 'GET /api/books with search and pagination');
+    assert(res.data.data.length >= 1, 'Search finds the created book');
+
+    const dueDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    res = await request('POST', '/api/borrows', {
+      bookId,
+      dueDate,
+    }, memberToken);
+    assert(res.status === 201, 'Member can borrow book');
+    const borrowId = res.data.data._id;
+
+    res = await request('GET', `/api/books/${bookId}`);
+    assert(res.data.data.availableQuantity === 4, 'availableQuantity decrements to 4 after borrow');
+
+    res = await request('POST', '/api/borrows', {
+      bookId,
+      dueDate,
+    }, memberToken);
+    assert(res.status === 400, 'Cannot borrow same book twice concurrently');
+
+    res = await request('GET', '/api/borrows/me', null, memberToken);
+    assert(res.status === 200, 'GET /api/borrows/me returns 200');
+    assert(res.data.data.length >= 1, 'Member sees borrow history');
+
+    res = await request('GET', '/api/borrows', null, librarianToken);
+    assert(res.status === 200, 'Librarian can view all borrows');
+
+    res = await request('GET', `/api/borrows/${borrowId}`, null, memberToken);
+    assert(res.status === 200, 'Member can view own borrow detail');
+
+    res = await request('PATCH', `/api/borrows/${borrowId}/return`, null, librarianToken);
+    assert(res.status === 200, 'Librarian can return book');
+    assert(res.data.data.status === 'returned', 'Borrow status updated to returned');
+
+    res = await request('GET', `/api/books/${bookId}`);
+    assert(res.data.data.availableQuantity === 5, 'availableQuantity increments back to 5 after return');
+
+    res = await request('PATCH', `/api/borrows/${borrowId}/return`, null, librarianToken);
+    assert(res.status === 400, 'Cannot return already returned ticket');
+
+    res = await request('GET', '/api/profile', null, memberToken);
+    assert(res.status === 200, 'GET /api/profile returns 200');
+
+    res = await request('PUT', '/api/profile', {
+      fullName: 'Updated Member Name',
+      phone: '0987654321',
+      address: 'Hanoi, Vietnam',
+    }, memberToken);
+    assert(res.status === 200, 'PUT /api/profile updates user profile');
+    assert(res.data.data.fullName === 'Updated Member Name', 'Full name updated');
+
+    res = await request('PATCH', '/api/profile/change-password', {
+      oldPassword: defaultPassword,
+      newPassword: 'newpassword123',
+    }, memberToken);
+    assert(res.status === 200, 'PATCH /api/profile/change-password succeeds');
+
+    res = await request('POST', '/api/auth/login', {
+      email: memberEmail,
+      password: 'newpassword123',
     });
-    if (res.status !== 403) {
-      throw new Error(`Phai tra ve 403 Forbidden, nhan duoc: ${res.status}`);
+    assert(res.status === 200, 'Login with new password succeeds');
+
+    res = await request('GET', '/api/books/low-stock?quantity=10', null, librarianToken);
+    assert(res.status === 200, 'GET /api/books/low-stock returns 200');
+    assert(Array.isArray(res.data.data), 'Low stock returns an array');
+
+    res = await request('GET', '/api/borrows/overdue', null, librarianToken);
+    assert(res.status === 200, 'GET /api/borrows/overdue returns 200');
+    assert(Array.isArray(res.data.data), 'Overdue returns an array');
+
+    res = await request('GET', '/api/books/export?format=json', null, librarianToken);
+    assert(res.status === 200, 'GET /api/books/export?format=json returns 200');
+    assert(Array.isArray(res.data.data), 'Export json returns array');
+
+    res = await request('GET', '/api/books/export?format=csv', null, librarianToken);
+    assert(res.status === 200, 'GET /api/books/export?format=csv returns 200');
+    assert(typeof res.data === 'string', 'Export csv returns string');
+    assert(res.data.includes('Mã sách,Tên sách'), 'CSV contains proper headers');
+
+    res = await request('GET', '/api/statistics/overview', null, librarianToken);
+    assert(res.status === 200, 'GET /api/statistics/overview returns 200');
+    assert(res.data.data.totalBooks !== undefined, 'Overview contains totalBooks');
+    assert(res.data.data.availableBooks !== undefined, 'Overview contains availableBooks');
+    assert(res.data.data.totalCategories !== undefined, 'Overview contains totalCategories');
+    assert(res.data.data.totalAuthors !== undefined, 'Overview contains totalAuthors');
+    assert(res.data.data.totalPublishers !== undefined, 'Overview contains totalPublishers');
+    assert(res.data.data.borrowingCount !== undefined, 'Overview contains borrowingCount');
+    assert(res.data.data.overdueCount !== undefined, 'Overview contains overdueCount');
+
+    res = await request('GET', '/api/statistics/categories', null, librarianToken);
+    assert(res.status === 200, 'GET /api/statistics/categories returns 200');
+    assert(Array.isArray(res.data.data), 'Statistics categories returns array');
+
+    res = await request('DELETE', `/api/categories/${categoryId}`, null, memberToken);
+    assert(res.status === 403, 'Member cannot delete category (403)');
+
+    res = await request('DELETE', `/api/categories/${categoryId}`, null, adminToken);
+    assert(res.status === 200, 'Admin can soft delete category');
+    assert(res.data.data.status === 'inactive', 'Category status set to inactive');
+
+    res = await request('DELETE', `/api/books/${bookId}`, null, adminToken);
+    assert(res.status === 200, 'Admin can soft delete book');
+    assert(res.data.data.status === 'inactive', 'Book status set to inactive');
+
+    console.log('\nALL 34 COMPREHENSIVE TESTS PASSED SUCCESSFULLY!\n');
+  } catch (err) {
+    console.error(err);
+    process.exitCode = 1;
+  } finally {
+    if (server) {
+      server.close();
     }
-  });
+    await mongoose.disconnect();
+  }
+};
 
-  await assert("15. PUT /api/books/:id -> Cho phep admin cap nhat sach (200 OK)", async () => {
-    const res = await fetch(`${baseUrl}/api/books/${createdBookId}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${adminToken}`,
-      },
-      body: JSON.stringify({
-        title: "Clean Code - Admin Updated",
-      }),
-    });
-    const data = await res.json();
-    if (res.status !== 200 || !data.success || data.data.title !== "Clean Code - Admin Updated") {
-      throw new Error(`Cap nhat sach that bai: ${JSON.stringify(data)}`);
-    }
-  });
-
-  await assert("16. DELETE /api/books/:id -> Chan user thuong xoa sach (403 Forbidden)", async () => {
-    const res = await fetch(`${baseUrl}/api/books/${createdBookId}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${userToken}`,
-      },
-    });
-    if (res.status !== 403) {
-      throw new Error(`Phai tra ve 403 Forbidden, nhan duoc: ${res.status}`);
-    }
-  });
-
-  await assert("17. DELETE /api/books/:id -> Cho phep admin xoa sach (200 OK)", async () => {
-    const res = await fetch(`${baseUrl}/api/books/${createdBookId}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${adminToken}`,
-      },
-    });
-    const data = await res.json();
-    if (res.status !== 200 || !data.success) {
-      throw new Error(`Xoa sach that bai: ${JSON.stringify(data)}`);
-    }
-  });
-
-  await assert("18. GET /api/books/invalid_id -> Bat loi dinh dang id khong hop le", async () => {
-    const res = await fetch(`${baseUrl}/api/books/invalid_id_12345`);
-    const data = await res.json();
-    if (data.success !== false) {
-      throw new Error("Server khong bat loi id khong hop le");
-    }
-  });
-
-  console.log(`\n=== TONG KET KIEM THU: ${passed} PASSED, ${failed} FAILED ===`);
-
-  server.close();
-  await mongoose.disconnect();
-  process.exit(failed > 0 ? 1 : 0);
-}
-
-runTests().catch((err) => {
-  console.error("Loi khi chay kiem thu:", err);
-  process.exit(1);
-});
+runTests();

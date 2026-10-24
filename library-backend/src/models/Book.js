@@ -1,32 +1,59 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const bookSchema = new mongoose.Schema(
   {
+    bookCode: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+    },
     title: {
       type: String,
       required: true,
       trim: true,
     },
-    author: {
+    description: {
       type: String,
-      required: true,
-      trim: true,
+      default: '',
     },
-    category: {
-      type: String,
-      default: "General",
-      trim: true,
-    },
-    available: {
-      type: Boolean,
-      default: true,
-    },
-    createdBy: {
+    categoryId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: 'Category',
+      required: true,
+    },
+    authorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Author',
+      required: true,
+    },
+    publisherId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Publisher',
+      required: true,
+    },
+    publishYear: {
+      type: Number,
+    },
+    quantity: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    availableQuantity: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    status: {
+      type: String,
+      enum: ['available', 'unavailable', 'inactive'],
+      default: 'available',
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
-module.exports = mongoose.model("Book", bookSchema);
+module.exports = mongoose.model('Book', bookSchema);
